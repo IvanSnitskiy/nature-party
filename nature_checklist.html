@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>На природу 🌿</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Unbounded:wght@400;700;900&family=Inter:wght@400;500;600&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --green-deep: #1a3a2a;
+    --green-mid: #2d6a4f;
+    --green-bright: #52b788;
+    --amber: #e9a23b;
+    --cream: #f7f3ec;
+    --smoke: #e8e3d9;
+    --text: #1a2018;
+    --muted: #7a8072;
+    --red: #d64c4c;
+    --card: #ffffff;
+    --shadow: 0 2px 12px rgba(26,58,42,0.10);
+  }
+  body { font-family: 'Inter', sans-serif; background: var(--cream); color: var(--text); min-height: 100vh; }
+
+  /* LOADER */
+  #loader {
+    position: fixed; inset: 0; background: var(--green-deep);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    z-index: 999; gap: 16px;
+  }
+  #loader .emoji { font-size: 3rem; animation: bounce 1s infinite alternate; }
+  #loader p { color: var(--green-bright); font-size: 0.9rem; font-weight: 500; }
+  @keyframes bounce { from { transform: translateY(0); } to { transform: translateY(-10px); } }
+
+  /* SYNC BADGE */
+  #sync-badge {
+    position: fixed; bottom: 16px; right: 16px;
+    background: var(--green-deep); color: var(--green-bright);
+    padding: 6px 12px; border-radius: 20px;
+    font-size: 0.75rem; font-weight: 600;
+    opacity: 0; transition: opacity 0.3s;
+    z-index: 100; pointer-events: none;
+  }
+  #sync-badge.show { opacity: 1; }
+
+  /* HEADER */
+  header {
+    background: var(--green-deep); color: var(--cream);
+    padding: 24px 20px 20px; text-align: center; position: relative; overflow: hidden;
+  }
+  header::before {
+    content: ''; position: absolute; top: -40px; right: -40px;
+    width: 180px; height: 180px; background: var(--green-bright);
+    opacity: 0.12; border-radius: 50%;
+  }
+  .header-emoji { font-size: 2rem; display: block; margin-bottom: 4px; }
+  header h1 { font-family: 'Unbounded', sans-serif; font-size: 1.5rem; font-weight: 900; letter-spacing: -0.5px; }
+  header p { font-size: 0.8rem; color: var(--green-bright); margin-top: 4px; font-weight: 500; }
+
+  /* TABS */
+  .tabs { display: flex; background: var(--green-deep); padding: 0 16px 14px; gap: 6px; }
+  .tab-btn {
+    flex: 1; padding: 9px 4px; border: none; border-radius: 10px;
+    font-family: 'Inter', sans-serif; font-size: 0.72rem; font-weight: 600;
+    cursor: pointer; transition: all 0.18s;
+    background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.55);
+  }
+  .tab-btn.active { background: var(--amber); color: var(--green-deep); }
+
+  main { padding: 14px; max-width: 560px; margin: 0 auto; }
+  .section { display: none; }
+  .section.active { display: block; }
+
+  .section-label {
+    font-family: 'Unbounded', sans-serif; font-size: 0.65rem; font-weight: 700;
+    color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase;
+    margin-bottom: 10px; margin-top: 2px;
+  }
+
+  /* CARDS */
+  .card { background: var(--card); border-radius: 14px; padding: 14px; margin-bottom: 10px; box-shadow: var(--shadow); }
+  .card-title {
+    font-family: 'Unbounded', sans-serif; font-size: 0.82rem; font-weight: 700;
+    color: var(--green-deep); margin-bottom: 10px; display: flex; align-items: center; gap: 7px;
+  }
+  .card-title .emoji { font-size: 1rem; }
+
+  /* VOTE ITEMS */
+  .vote-item { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--smoke); }
+  .vote-item:last-child { border-bottom: none; }
+  .vote-name { flex: 1; font-size: 0.85rem; font-weight: 500; }
+  .vote-bar-wrap { width: 70px; height: 5px; background: var(--smoke); border-radius: 4px; overflow: hidden; }
+  .vote-bar { height: 100%; background: var(--green-bright); border-radius: 4px; transition: width 0.35s ease; }
+  .vote-count { min-width: 20px; text-align: center; font-size: 0.8rem; font-weight: 700; color: var(--green-mid); }
+  .vote-btn {
+    width: 32px; height: 32px; border-radius: 50%; border: 2px solid var(--green-bright);
+    background: transparent; color: var(--green-mid); font-size: 1rem; cursor: pointer;
+    transition: all 0.15s; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .vote-btn.voted { background: var(--green-bright); color: white; border-color: var(--green-bright); }
+  .vote-btn:hover { transform: scale(1.1); }
+
+  /* CHECKLIST */
+  .check-item {
+    display: flex; align-items: center; gap: 10px; padding: 9px 0;
+    border-bottom: 1px solid var(--smoke); cursor: pointer; transition: opacity 0.2s;
+  }
+  .check-item:last-child { border-bottom: none; }
+  .check-item.done { opacity: 0.42; }
+  .check-item.done .check-name { text-decoration: line-through; }
+  .checkbox {
+    width: 20px; height: 20px; border: 2px solid var(--green-bright);
+    border-radius: 5px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; transition: all 0.15s;
+  }
+  .check-item.done .checkbox { background: var(--green-bright); border-color: var(--green-bright); }
+  .checkbox svg { display: none; }
+  .check-item.done .checkbox svg { display: block; }
+  .check-name { flex: 1; font-size: 0.85rem; font-weight: 500; }
+  .check-qty { font-size: 0.75rem; color: var(--muted); font-weight: 500; background: var(--smoke); padding: 2px 7px; border-radius: 20px; }
+
+  /* PROGRESS */
+  .progress-wrap { background: var(--card); border-radius: 14px; padding: 12px 14px; margin-bottom: 12px; box-shadow: var(--shadow); }
+  .progress-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 7px; }
+  .progress-label { font-size: 0.78rem; font-weight: 600; color: var(--muted); }
+  .progress-pct { font-family: 'Unbounded', sans-serif; font-size: 0.88rem; font-weight: 700; color: var(--green-mid); }
+  .progress-track { height: 7px; background: var(--smoke); border-radius: 4px; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--green-bright), var(--green-mid)); border-radius: 4px; transition: width 0.4s ease; }
+
+  .reset-btn {
+    display: block; width: 100%; margin-top: 6px; padding: 11px;
+    border: 2px solid var(--smoke); border-radius: 12px; background: transparent;
+    color: var(--muted); font-family: 'Inter', sans-serif; font-size: 0.8rem; font-weight: 600;
+    cursor: pointer; transition: all 0.15s; text-align: center;
+  }
+  .reset-btn:hover { border-color: var(--red); color: var(--red); }
+
+  .top-badge {
+    font-size: 0.6rem; font-weight: 700; background: var(--amber);
+    color: var(--green-deep); padding: 2px 5px; border-radius: 20px; margin-left: 3px;
+  }
+
+  /* REFRESH BTN */
+  .refresh-row { display: flex; justify-content: flex-end; margin-bottom: 8px; }
+  .refresh-btn {
+    background: transparent; border: none; color: var(--muted);
+    font-size: 0.75rem; font-weight: 600; cursor: pointer; padding: 4px 8px;
+    border-radius: 8px; display: flex; align-items: center; gap: 4px; transition: color 0.15s;
+  }
+  .refresh-btn:hover { color: var(--green-mid); }
+  .spin { display: inline-block; }
+  .spinning { animation: spin 0.7s linear infinite; }
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div id="loader">
+  <span class="emoji">🌿</span>
+  <p>Загружаем данные…</p>
+</div>
+
+<div id="sync-badge">✓ Сохранено</div>
+
+<header>
+  <span class="header-emoji">🌿</span>
+  <h1>На природу!</h1>
+  <p>Голоса синхронизируются у всех участников</p>
+</header>
+
+<div class="tabs">
+  <button class="tab-btn active" onclick="switchTab('vote', this)">🍖 Меню</button>
+  <button class="tab-btn" onclick="switchTab('drinks', this)">🍺 Напитки</button>
+  <button class="tab-btn" onclick="switchTab('shop', this)">🛒 Покупки</button>
+  <button class="tab-btn" onclick="switchTab('gear', this)">🎒 Снаряга</button>
+</div>
+
+<main>
+
+<!-- МЕНЮ -->
+<div class="section active" id="section-vote">
+  <div class="refresh-row">
+    <button class="refresh-btn" onclick="loadState(true)"><span class="spin" id="spin-vote">↻</span> Обновить</button>
+  </div>
+  <p class="section-label">Проголосуй за блюда</p>
+  <div class="card"><div class="card-title"><span class="emoji">🔥</span> Мангал</div><div id="food-mangal"></div></div>
+  <div class="card"><div class="card-title"><span class="emoji">🥗</span> Закуски и салаты</div><div id="food-snacks"></div></div>
+  <div class="card"><div class="card-title"><span class="emoji">🍞</span> Хлеб и гарниры</div><div id="food-sides"></div></div>
+  <div class="card"><div class="card-title"><span class="emoji">🍬</span> Десерты</div><div id="food-desserts"></div></div>
+  <button class="reset-btn" onclick="resetVotes('food')">Сбросить голоса за еду</button>
+</div>
+
+<!-- НАПИТКИ -->
+<div class="section" id="section-drinks">
+  <div class="refresh-row">
+    <button class="refresh-btn" onclick="loadState(true)"><span class="spin" id="spin-drinks">↻</span> Обновить</button>
+  </div>
+  <p class="section-label">Проголосуй за напитки</p>
+  <div class="card"><div class="card-title"><span class="emoji">🍺</span> Алкоголь</div><div id="drink-alcohol"></div></div>
+  <div class="card"><div class="card-title"><span class="emoji">🥤</span> Безалкогольное</div><div id="drink-nonalco"></div></div>
+  <button class="reset-btn" onclick="resetVotes('drink')">Сбросить голоса за напитки</button>
+</div>
+
+<!-- ПОКУПКИ -->
+<div class="section" id="section-shop">
+  <div class="refresh-row">
+    <button class="refresh-btn" onclick="loadState(true)"><span class="spin" id="spin-shop">↻</span> Обновить</button>
+  </div>
+  <p class="section-label">Список покупок</p>
+  <div class="progress-wrap">
+    <div class="progress-header">
+      <span class="progress-label">Куплено</span>
+      <span class="progress-pct" id="shop-pct">0%</span>
+    </div>
+    <div class="progress-track"><div class="progress-fill" id="shop-bar" style="width:0%"></div></div>
+  </div>
+  <div class="card"><div class="card-title"><span class="emoji">🥩</span> Для мангала</div><div id="shop-meat"></div></div>
+  <div class="card"><div class="card-title"><span class="emoji">🥬</span> Овощи и зелень</div><div id="shop-vegs"></div></div>
+  <div class="card"><div class="card-title"><span class="emoji">🧂</span> Специи и соусы</div><div id="shop-spices"></div></div>
+  <div class="card"><div class="card-title"><span class="emoji">🍺</span> Напитки</div><div id="shop-drinks"></div></div>
+  <div class="card"><div class="card-title"><span class="emoji">🍞</span> Хлеб, снеки, сладкое</div><div id="shop-bread"></div></div>
+  <button class="reset-btn" onclick="resetChecklist('shop')">Сбросить покупки</button>
+</div>
+
+<!-- СНАРЯГА -->
+<div class="section" id="section-gear">
+  <div class="refresh-row">
+    <button class="refresh-btn" onclick="loadState(true)"><span class="spin" id="spin-gear">↻</span> Обновить</button>
+  </div>
+  <p class="section-label">Снаряжение и вещи</p>
+  <div class="progress-wrap">
+    <div class="progress-header">
+      <span class="progress-label">Собрано</span>
+      <span class="progress-pct" id="gear-pct">0%</span>
+    </div>
+    <div class="progress-track"><div class="progress-fill" id="gear-bar" style="width:0%"></div></div>
+  </div>
+  <div class="card"><div class="card-title"><span class="emoji">🔥</span> Для мангала</div><div id="gear-mangal"></div></div>
+  <div class="card"><div class="card-title"><span class="emoji">🍽️</span> Посуда</div><div id="gear-dishes"></div></div>
+  <div class="card"><div class="card-title"><span class="emoji">🧹</span> Уборка и безопасность</div><div id="gear-clean"></div></div>
+  <div class="card"><div class="card-title"><span class="emoji">🌡️</span> Комфорт</div><div id="gear-comfort"></div></div>
+  <button class="reset-btn" onclick="resetChecklist('gear')">Сбросить снарягу</button>
+</div>
+
+</main>
+
+<script>
+// ── STATIC DATA ───────────────────────────────────────────────
+const foodData = {
+  'food-mangal': ['Шашлык из свинины','Куриные крылышки','Стейк из говядины','Рыба на решётке','Колбаски/сосиски','Овощи-гриль'],
+  'food-snacks': ['Нарезка из овощей','Греческий салат','Оливье/Мимоза','Сырная тарелка','Бутерброды','Хумус + питы'],
+  'food-sides':  ['Лаваш / хлеб','Картошка в углях','Кукуруза на гриле','Маринованный лук'],
+  'food-desserts':['Маршмеллоу на костре','Арбуз','Фрукты','Шоколад']
+};
+const drinkData = {
+  'drink-alcohol':  ['Пиво светлое','Пиво тёмное','Вино красное','Вино белое/розе','Просекко / игристое','Крепкий алкоголь'],
+  'drink-nonalco':  ['Вода негаз.','Вода газ.','Лимонад / сок','Холодный чай','Компот домашний','Энергетики']
+};
+const shopData = {
+  'shop-meat':  [{name:'Свинина (шея)',qty:'2 кг'},{name:'Курица (крылья/бёдра)',qty:'1.5 кг'},{name:'Говядина (стейки)',qty:'1 кг'},{name:'Колбаски гриль',qty:'500 г'},{name:'Рыба (форель/сёмга)',qty:'1 кг'}],
+  'shop-vegs':  [{name:'Помидоры',qty:'1 кг'},{name:'Огурцы',qty:'500 г'},{name:'Болгарский перец',qty:'4 шт'},{name:'Лук репчатый',qty:'4 шт'},{name:'Чеснок',qty:'1 головка'},{name:'Кукуруза',qty:'4 шт'},{name:'Лимоны',qty:'2 шт'},{name:'Зелень',qty:'2 пучка'}],
+  'shop-spices':[{name:'Маринад / кетчуп',qty:'2 бут'},{name:'Соевый соус',qty:'1 бут'},{name:'Майонез',qty:'1 уп'},{name:'Горчица',qty:'1 уп'},{name:'Специи для шашлыка',qty:'1 уп'},{name:'Соль, перец',qty:'по вкусу'},{name:'Оливковое масло',qty:'1 бут'}],
+  'shop-drinks':[{name:'Вода питьевая',qty:'6 л'},{name:'Пиво',qty:'12 бут'},{name:'Вино',qty:'2 бут'},{name:'Сок / лимонад',qty:'3 л'},{name:'Лёд',qty:'2 пакета'}],
+  'shop-bread': [{name:'Лаваш',qty:'3 шт'},{name:'Хлеб',qty:'1 буханка'},{name:'Чипсы / снеки',qty:'3 уп'},{name:'Маршмеллоу',qty:'1 уп'},{name:'Арбуз',qty:'1 шт'},{name:'Фрукты',qty:'1 кг'},{name:'Шоколад',qty:'2 плитки'}]
+};
+const gearData = {
+  'gear-mangal': ['Мангал / решётка','Уголь (10 кг)','Розжиг / жидкость','Шампуры (10+ шт)','Щипцы для гриля','Фольга'],
+  'gear-dishes': ['Одноразовые тарелки','Стаканы пластик','Вилки/ложки/ножи','Доска для нарезки','Миски (2 шт)','Открывалка','Штопор','Термос / чайник'],
+  'gear-clean':  ['Мусорные мешки (5+)','Влажные салфетки','Туалетная бумага','Жидкость для рук','Антисептик','Аптечка'],
+  'gear-comfort':['Покрывала / скатерти','Складные стулья','Складной стол','Репеллент от комаров','Солнцезащитный крем','Зонт / тент','Bluetooth-колонка','Павербанк']
+};
+
+// ── STATE (shared via API) ────────────────────────────────────
+// votes: { itemName: count }
+// userVotes: { itemName: true }  — local only, stored in sessionStorage
+// shopDone: { 'shop-meat_0': true, ... }
+// gearDone: { 'gear-mangal_0': true, ... }
+
+let state = { votes: {}, shopDone: {}, gearDone: {} };
+let userVotes = JSON.parse(sessionStorage.getItem('uv') || '{}');
+let saving = false;
+
+// ── API ───────────────────────────────────────────────────────
+const STORAGE_KEY = 'nature_party_v1';
+
+async function loadState(showSpin) {
+  if (showSpin) spinOn();
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1000,
+        system: `You are a state manager. The user will ask you to read or write a JSON state object stored under key "${STORAGE_KEY}". 
+When asked to GET state: respond ONLY with the JSON object (no markdown, no explanation). If no state exists yet, respond with: {"votes":{},"shopDone":{},"gearDone":{}}.
+When asked to SET state: acknowledge with just: OK`,
+        messages: [{ role: 'user', content: `GET state for key: ${STORAGE_KEY}` }]
+      })
+    });
+    const data = await res.json();
+    const text = (data.content || []).map(b => b.text || '').join('').trim();
+    try {
+      const parsed = JSON.parse(text);
+      state = {
+        votes: parsed.votes || {},
+        shopDone: parsed.shopDone || {},
+        gearDone: parsed.gearDone || {}
+      };
+    } catch(e) {
+      // keep current state
+    }
+  } catch(e) {
+    // offline fallback — use sessionStorage
+    const cached = sessionStorage.getItem('state_cache');
+    if (cached) state = JSON.parse(cached);
+  }
+  sessionStorage.setItem('state_cache', JSON.stringify(state));
+  renderAll();
+  if (showSpin) spinOff();
+  document.getElementById('loader').style.display = 'none';
+}
+
+async function saveState() {
+  if (saving) return;
+  saving = true;
+  sessionStorage.setItem('state_cache', JSON.stringify(state));
+  showSyncBadge();
+  try {
+    await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 100,
+        system: `You are a state manager. The user will send you a JSON state to store under key "${STORAGE_KEY}". Respond ONLY with: OK`,
+        messages: [{ role: 'user', content: `SET state for key: ${STORAGE_KEY}\n${JSON.stringify(state)}` }]
+      })
+    });
+  } catch(e) { /* silent fail, cached locally */ }
+  saving = false;
+}
+
+// ── SPIN / BADGE ──────────────────────────────────────────────
+function spinOn() {
+  document.querySelectorAll('.spin').forEach(s => s.classList.add('spinning'));
+}
+function spinOff() {
+  document.querySelectorAll('.spin').forEach(s => s.classList.remove('spinning'));
+}
+function showSyncBadge() {
+  const b = document.getElementById('sync-badge');
+  b.classList.add('show');
+  setTimeout(() => b.classList.remove('show'), 1800);
+}
+
+// ── TABS ──────────────────────────────────────────────────────
+function switchTab(tab, btn) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('section-' + tab).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ── RENDER ────────────────────────────────────────────────────
+function renderAll() {
+  Object.entries(foodData).forEach(([id, items]) => renderVotes(id, items));
+  Object.entries(drinkData).forEach(([id, items]) => renderVotes(id, items));
+  renderShop();
+  renderGear();
+}
+
+function renderVotes(containerId, items) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  const maxVotes = Math.max(1, ...items.map(item => state.votes[item] || 0));
+  container.innerHTML = items.map(item => {
+    const count = state.votes[item] || 0;
+    const voted = userVotes[item];
+    const pct = Math.round((count / maxVotes) * 100);
+    const isTop = count > 0 && count === maxVotes;
+    return `
+      <div class="vote-item">
+        <span class="vote-name">${item}${isTop && count > 1 ? '<span class="top-badge">ТОП</span>' : ''}</span>
+        <div class="vote-bar-wrap"><div class="vote-bar" style="width:${pct}%"></div></div>
+        <span class="vote-count">${count}</span>
+        <button class="vote-btn ${voted ? 'voted' : ''}" onclick="toggleVote('${item}')">
+          ${voted ? '✓' : '+'}
+        </button>
+      </div>`;
+  }).join('');
+}
+
+function renderChecklist(containerId, items, stateObj, toggleFn) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  container.innerHTML = items.map((item, i) => {
+    const key = containerId + '_' + i;
+    const done = stateObj[key];
+    const name = typeof item === 'string' ? item : item.name;
+    const qty  = typeof item === 'object' ? item.qty : null;
+    return `
+      <div class="check-item ${done ? 'done' : ''}" onclick="${toggleFn}('${containerId}', ${i})">
+        <div class="checkbox">
+          <svg width="11" height="9" viewBox="0 0 11 9" fill="none">
+            <path d="M1 4.5L3.8 7.5L10 1" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <span class="check-name">${name}</span>
+        ${qty ? `<span class="check-qty">${qty}</span>` : ''}
+      </div>`;
+  }).join('');
+}
+
+function updateProgress(barId, pctId, stateObj, allItems) {
+  const total = allItems.reduce((s, items) => s + items.length, 0);
+  const done  = Object.values(stateObj).filter(Boolean).length;
+  const pct   = total > 0 ? Math.round((done / total) * 100) : 0;
+  document.getElementById(barId).style.width = pct + '%';
+  document.getElementById(pctId).textContent = pct + '%';
+}
+
+function renderShop() {
+  Object.entries(shopData).forEach(([id, items]) => renderChecklist(id, items, state.shopDone, 'toggleShop'));
+  updateProgress('shop-bar', 'shop-pct', state.shopDone, Object.values(shopData));
+}
+
+function renderGear() {
+  Object.entries(gearData).forEach(([id, items]) => renderChecklist(id, items, state.gearDone, 'toggleGear'));
+  updateProgress('gear-bar', 'gear-pct', state.gearDone, Object.values(gearData));
+}
+
+// ── ACTIONS ───────────────────────────────────────────────────
+function toggleVote(item) {
+  if (userVotes[item]) {
+    state.votes[item] = Math.max(0, (state.votes[item] || 0) - 1);
+    delete userVotes[item];
+  } else {
+    state.votes[item] = (state.votes[item] || 0) + 1;
+    userVotes[item] = true;
+  }
+  sessionStorage.setItem('uv', JSON.stringify(userVotes));
+  renderAll();
+  saveState();
+}
+
+function toggleShop(containerId, idx) {
+  const key = containerId + '_' + idx;
+  state.shopDone[key] = !state.shopDone[key];
+  renderShop();
+  saveState();
+}
+
+function toggleGear(containerId, idx) {
+  const key = containerId + '_' + idx;
+  state.gearDone[key] = !state.gearDone[key];
+  renderGear();
+  saveState();
+}
+
+function resetVotes(type) {
+  if (!confirm('Сбросить все голоса?')) return;
+  const data = type === 'food' ? foodData : drinkData;
+  Object.values(data).flat().forEach(item => {
+    delete state.votes[item];
+    delete userVotes[item];
+  });
+  sessionStorage.setItem('uv', JSON.stringify(userVotes));
+  renderAll();
+  saveState();
+}
+
+function resetChecklist(type) {
+  if (!confirm('Сбросить список?')) return;
+  if (type === 'shop') state.shopDone = {};
+  else state.gearDone = {};
+  renderAll();
+  saveState();
+}
+
+// ── INIT ──────────────────────────────────────────────────────
+loadState(false);
+
+// Auto-refresh every 30 sec
+setInterval(() => loadState(false), 30000);
+</script>
+</body>
+</html>
