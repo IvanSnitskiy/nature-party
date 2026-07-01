@@ -6,7 +6,7 @@
 <title>На природу 🌿</title>
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getDatabase, ref, onValue, set, get } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+  import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyA3OorIv-4dSY3wIAXbziZVLkCDSmVVwxM",
@@ -22,7 +22,6 @@
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
 
-  // ── STATIC DATA ──────────────────────────────────────────────
   const foodData = {
     'food-mangal':   ['Шашлык из свинины','Куриные крылышки','Стейк из говядины','Рыба на решётке','Колбаски/сосиски','Овощи-гриль'],
     'food-snacks':   ['Нарезка из овощей','Греческий салат','Оливье/Мимоза','Сырная тарелка','Бутерброды','Хумус + питы'],
@@ -47,61 +46,43 @@
     'gear-comfort': ['Покрывала / скатерти','Складные стулья','Складной стол','Репеллент от комаров','Солнцезащитный крем','Зонт / тент','Bluetooth-колонка','Павербанк']
   };
 
-  // ── STATE ────────────────────────────────────────────────────
   let state = { votes: {}, shopDone: {}, gearDone: {} };
   let userVotes = JSON.parse(sessionStorage.getItem('uv') || '{}');
 
-  // ── FIREBASE SYNC ────────────────────────────────────────────
   const stateRef = ref(db, 'state');
-
-  // Listen for real-time updates from other users
   onValue(stateRef, (snapshot) => {
     const data = snapshot.val();
-    if (data) {
-      state = {
-        votes:    data.votes    || {},
-        shopDone: data.shopDone || {},
-        gearDone: data.gearDone || {}
-      };
-    } else {
-      state = { votes: {}, shopDone: {}, gearDone: {} };
-    }
+    state = data ? { votes: data.votes||{}, shopDone: data.shopDone||{}, gearDone: data.gearDone||{} }
+                 : { votes: {}, shopDone: {}, gearDone: {} };
     renderAll();
     document.getElementById('loader').style.display = 'none';
     showSyncBadge('🟢 Подключено');
   });
 
   async function saveState() {
-    try {
-      await set(stateRef, state);
-      showSyncBadge('✓ Сохранено');
-    } catch(e) {
-      showSyncBadge('⚠️ Ошибка сохранения');
-    }
+    try { await set(stateRef, state); showSyncBadge('✓ Сохранено'); }
+    catch(e) { showSyncBadge('⚠️ Ошибка'); }
   }
 
-  // ── BADGE ────────────────────────────────────────────────────
   function showSyncBadge(text) {
     const b = document.getElementById('sync-badge');
-    b.textContent = text;
-    b.classList.add('show');
+    b.textContent = text; b.classList.add('show');
     setTimeout(() => b.classList.remove('show'), 2000);
   }
 
-  // ── TABS ─────────────────────────────────────────────────────
   window.switchTab = function(tab, btn) {
     document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.getElementById('section-' + tab).classList.add('active');
     btn.classList.add('active');
+    if (tab === 'summary') renderSummary();
   };
 
-  // ── RENDER ───────────────────────────────────────────────────
   function renderAll() {
     Object.entries(foodData).forEach(([id, items]) => renderVotes(id, items));
     Object.entries(drinkData).forEach(([id, items]) => renderVotes(id, items));
-    renderShop();
-    renderGear();
+    renderShop(); renderGear();
+    if (document.getElementById('section-summary').classList.contains('active')) renderSummary();
   }
 
   function renderVotes(containerId, items) {
@@ -113,15 +94,14 @@
       const voted = userVotes[item];
       const pct = Math.round((count / maxVotes) * 100);
       const isTop = count > 0 && count === maxVotes;
-      return `
-        <div class="vote-item">
-          <span class="vote-name">${item}${isTop && count > 1 ? '<span class="top-badge">ТОП</span>' : ''}</span>
-          <div class="vote-bar-wrap"><div class="vote-bar" style="width:${pct}%"></div></div>
-          <span class="vote-count">${count}</span>
-          <button class="vote-btn ${voted ? 'voted' : ''}" onclick="toggleVote('${item}')">
-            ${voted ? '✓' : '+'}
-          </button>
-        </div>`;
+      return `<div class="vote-item">
+        <span class="vote-name">${item}${isTop && count > 1 ? '<span class="top-badge">ТОП</span>' : ''}</span>
+        <div class="vote-bar-wrap"><div class="vote-bar" style="width:${pct}%"></div></div>
+        <span class="vote-count">${count}</span>
+        <button class="vote-btn ${voted ? 'voted' : ''}" onclick="toggleVote('${item}')">
+          ${voted ? '✓' : '+'}
+        </button>
+      </div>`;
     }).join('');
   }
 
@@ -133,16 +113,15 @@
       const done = stateObj[key];
       const name = typeof item === 'string' ? item : item.name;
       const qty  = typeof item === 'object' ? item.qty : null;
-      return `
-        <div class="check-item ${done ? 'done' : ''}" onclick="${toggleFn}('${containerId}', ${i})">
-          <div class="checkbox">
-            <svg width="11" height="9" viewBox="0 0 11 9" fill="none">
-              <path d="M1 4.5L3.8 7.5L10 1" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </div>
-          <span class="check-name">${name}</span>
-          ${qty ? `<span class="check-qty">${qty}</span>` : ''}
-        </div>`;
+      return `<div class="check-item ${done ? 'done' : ''}" onclick="${toggleFn}('${containerId}', ${i})">
+        <div class="checkbox">
+          <svg width="11" height="9" viewBox="0 0 11 9" fill="none">
+            <path d="M1 4.5L3.8 7.5L10 1" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <span class="check-name">${name}</span>
+        ${qty ? `<span class="check-qty">${qty}</span>` : ''}
+      </div>`;
     }).join('');
   }
 
@@ -158,13 +137,88 @@
     Object.entries(shopData).forEach(([id, items]) => renderChecklist(id, items, state.shopDone, 'toggleShop'));
     updateProgress('shop-bar', 'shop-pct', state.shopDone, Object.values(shopData));
   }
-
   function renderGear() {
     Object.entries(gearData).forEach(([id, items]) => renderChecklist(id, items, state.gearDone, 'toggleGear'));
     updateProgress('gear-bar', 'gear-pct', state.gearDone, Object.values(gearData));
   }
 
-  // ── ACTIONS ──────────────────────────────────────────────────
+  // ── SUMMARY ──────────────────────────────────────────────────
+  function renderSummary() {
+    // Top voted food
+    const allFood = Object.values(foodData).flat();
+    const topFood = allFood
+      .map(item => ({ name: item, votes: state.votes[item] || 0 }))
+      .filter(i => i.votes > 0)
+      .sort((a, b) => b.votes - a.votes)
+      .slice(0, 6);
+
+    // Top voted drinks
+    const allDrinks = Object.values(drinkData).flat();
+    const topDrinks = allDrinks
+      .map(item => ({ name: item, votes: state.votes[item] || 0 }))
+      .filter(i => i.votes > 0)
+      .sort((a, b) => b.votes - a.votes)
+      .slice(0, 5);
+
+    // Shop progress
+    const shopTotal = Object.values(shopData).reduce((s, items) => s + items.length, 0);
+    const shopDone  = Object.values(state.shopDone).filter(Boolean).length;
+    const gearTotal = Object.values(gearData).reduce((s, items) => s + items.length, 0);
+    const gearDone  = Object.values(state.gearDone).filter(Boolean).length;
+
+    // Remaining shop items
+    const remainShop = [];
+    Object.entries(shopData).forEach(([id, items]) => {
+      items.forEach((item, i) => {
+        if (!state.shopDone[id + '_' + i]) {
+          remainShop.push(typeof item === 'string' ? item : `${item.name} — ${item.qty}`);
+        }
+      });
+    });
+
+    const foodHTML = topFood.length > 0
+      ? topFood.map(i => `<div class="sum-item"><span class="sum-name">${i.name}</span><span class="sum-votes">${i.votes} 👍</span></div>`).join('')
+      : '<div class="sum-empty">Пока никто не голосовал</div>';
+
+    const drinksHTML = topDrinks.length > 0
+      ? topDrinks.map(i => `<div class="sum-item"><span class="sum-name">${i.name}</span><span class="sum-votes">${i.votes} 👍</span></div>`).join('')
+      : '<div class="sum-empty">Пока никто не голосовал</div>';
+
+    const remainHTML = remainShop.length > 0
+      ? remainShop.map(i => `<div class="sum-remain-item">• ${i}</div>`).join('')
+      : '<div class="sum-empty">✅ Всё куплено!</div>';
+
+    document.getElementById('summary-content').innerHTML = `
+      <!-- СТАТУС -->
+      <div class="sum-status-row">
+        <div class="sum-stat-box">
+          <div class="sum-stat-num">${shopDone}/${shopTotal}</div>
+          <div class="sum-stat-label">покупок</div>
+        </div>
+        <div class="sum-stat-box">
+          <div class="sum-stat-num">${gearDone}/${gearTotal}</div>
+          <div class="sum-stat-label">снаряги</div>
+        </div>
+        <div class="sum-stat-box">
+          <div class="sum-stat-num">${topFood.length + topDrinks.length}</div>
+          <div class="sum-stat-label">блюд выбрано</div>
+        </div>
+      </div>
+
+      <!-- МЕНЮ -->
+      <div class="sum-section-title">🔥 Берём на мангал</div>
+      <div class="card">${foodHTML}</div>
+
+      <!-- НАПИТКИ -->
+      <div class="sum-section-title">🍺 Пьём</div>
+      <div class="card">${drinksHTML}</div>
+
+      <!-- ЧТО ЕЩЁ КУПИТЬ -->
+      <div class="sum-section-title">🛒 Ещё не куплено</div>
+      <div class="card">${remainHTML}</div>
+    `;
+  }
+
   window.toggleVote = function(item) {
     if (userVotes[item]) {
       state.votes[item] = Math.max(0, (state.votes[item] || 0) - 1);
@@ -176,30 +230,23 @@
     sessionStorage.setItem('uv', JSON.stringify(userVotes));
     saveState();
   };
-
   window.toggleShop = function(containerId, idx) {
     const key = containerId + '_' + idx;
     state.shopDone[key] = !state.shopDone[key];
     saveState();
   };
-
   window.toggleGear = function(containerId, idx) {
     const key = containerId + '_' + idx;
     state.gearDone[key] = !state.gearDone[key];
     saveState();
   };
-
   window.resetVotes = function(type) {
     if (!confirm('Сбросить все голоса?')) return;
     const data = type === 'food' ? foodData : drinkData;
-    Object.values(data).flat().forEach(item => {
-      delete state.votes[item];
-      delete userVotes[item];
-    });
+    Object.values(data).flat().forEach(item => { delete state.votes[item]; delete userVotes[item]; });
     sessionStorage.setItem('uv', JSON.stringify(userVotes));
     saveState();
   };
-
   window.resetChecklist = function(type) {
     if (!confirm('Сбросить список?')) return;
     if (type === 'shop') state.shopDone = {};
@@ -247,10 +294,10 @@
   header h1 { font-family: 'Unbounded', sans-serif; font-size: 1.5rem; font-weight: 900; letter-spacing: -0.5px; }
   header p { font-size: 0.78rem; color: var(--green-bright); margin-top: 4px; font-weight: 500; }
 
-  .tabs { display: flex; background: var(--green-deep); padding: 0 16px 14px; gap: 6px; }
+  .tabs { display: flex; background: var(--green-deep); padding: 0 12px 14px; gap: 5px; }
   .tab-btn {
-    flex: 1; padding: 9px 4px; border: none; border-radius: 10px;
-    font-family: 'Inter', sans-serif; font-size: 0.72rem; font-weight: 600;
+    flex: 1; padding: 8px 2px; border: none; border-radius: 10px;
+    font-family: 'Inter', sans-serif; font-size: 0.68rem; font-weight: 600;
     cursor: pointer; transition: all 0.18s;
     background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.55);
   }
@@ -321,6 +368,41 @@
     font-size: 0.6rem; font-weight: 700; background: var(--amber);
     color: var(--green-deep); padding: 2px 5px; border-radius: 20px; margin-left: 3px;
   }
+
+  /* SUMMARY */
+  .sum-status-row {
+    display: flex; gap: 8px; margin-bottom: 16px;
+  }
+  .sum-stat-box {
+    flex: 1; background: var(--green-deep); border-radius: 14px;
+    padding: 14px 8px; text-align: center;
+  }
+  .sum-stat-num {
+    font-family: 'Unbounded', sans-serif; font-size: 1.3rem; font-weight: 900;
+    color: var(--green-bright); line-height: 1;
+  }
+  .sum-stat-label {
+    font-size: 0.7rem; color: rgba(255,255,255,0.5); font-weight: 500; margin-top: 4px;
+  }
+  .sum-section-title {
+    font-family: 'Unbounded', sans-serif; font-size: 0.72rem; font-weight: 700;
+    color: var(--green-deep); margin: 14px 0 8px; letter-spacing: 0.02em;
+  }
+  .sum-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 0; border-bottom: 1px solid var(--smoke);
+  }
+  .sum-item:last-child { border-bottom: none; }
+  .sum-name { font-size: 0.85rem; font-weight: 500; }
+  .sum-votes {
+    font-size: 0.78rem; font-weight: 700; color: var(--green-mid);
+    background: #e8f5ee; padding: 2px 8px; border-radius: 20px;
+  }
+  .sum-remain-item {
+    font-size: 0.83rem; padding: 6px 0; border-bottom: 1px solid var(--smoke); color: var(--text);
+  }
+  .sum-remain-item:last-child { border-bottom: none; }
+  .sum-empty { font-size: 0.85rem; color: var(--muted); padding: 6px 0; text-align: center; }
 </style>
 </head>
 <body>
@@ -342,6 +424,7 @@
   <button class="tab-btn" onclick="switchTab('drinks', this)">🍺 Напитки</button>
   <button class="tab-btn" onclick="switchTab('shop', this)">🛒 Покупки</button>
   <button class="tab-btn" onclick="switchTab('gear', this)">🎒 Снаряга</button>
+  <button class="tab-btn" onclick="switchTab('summary', this)">📋 Итог</button>
 </div>
 
 <main>
@@ -393,6 +476,11 @@
   <div class="card"><div class="card-title"><span>🧹</span> Уборка и безопасность</div><div id="gear-clean"></div></div>
   <div class="card"><div class="card-title"><span>🌡️</span> Комфорт</div><div id="gear-comfort"></div></div>
   <button class="reset-btn" onclick="resetChecklist('gear')">Сбросить снарягу</button>
+</div>
+
+<div class="section" id="section-summary">
+  <p class="section-label">Общий план вылазки</p>
+  <div id="summary-content"></div>
 </div>
 
 </main>
